@@ -22,6 +22,19 @@
         "scaleInterval": {
             "type": "int",
             "defaultValue": 15
+        },
+        "maxUnits": {
+            "type": "int",
+            "defaultValue": 5,
+            "allowedValues": [
+                1,
+                2,
+                5,
+                10,
+                20,
+                50,
+                100
+            ]
         }
     },
     "variables": {},
@@ -60,6 +73,10 @@
                         "subscriptionId": {
                             "defaultValue": "[subscription().subscriptionId]",
                             "type": "String"
+                        },
+                        "maxUnits": {
+                            "defaultValue": "[parameters('maxUnits')]",
+                            "type": "Int"
                         }
                     },
                     "triggers": {
@@ -282,7 +299,7 @@
                                     {
                                         "name": "finalUnits",
                                         "type": "Integer",
-                                        "value": "@first(body('Remove_smaller_supportedUnits'))"
+                                        "value": "@max(first(body('Remove_smaller_supportedUnits')),variables('maxUnits'))"
                                     }
                                 ]
                             },
@@ -299,7 +316,7 @@
                                     {
                                         "name": "maxUnits",
                                         "type": "Integer",
-                                        "value": 5
+                                        "value": "@parameters('maxUnits')"
                                     }
                                 ]
                             },
