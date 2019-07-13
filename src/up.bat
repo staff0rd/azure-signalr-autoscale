@@ -10,6 +10,6 @@ az ad sp reset-credentials --name "azure-signalr-logic-apps"
 
 az account show --query id
 
-
+az signalr key list -n autoscale -g azure-signalr --query primaryConnectionString -o tsv
 dotnet bin\debug\netcoreapp3.0\BenchmarkServer.dll Azure:SignalR:ConnectionString=<connectionStringFromAbove>
 dotnet bin\Debug\netcoreapp3.0\Crankier.dll local --target-url http://localhost:5000/echo

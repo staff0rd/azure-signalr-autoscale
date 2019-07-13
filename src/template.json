@@ -299,7 +299,7 @@
                                     {
                                         "name": "finalUnits",
                                         "type": "Integer",
-                                        "value": "@max(first(body('Remove_smaller_supportedUnits')),variables('maxUnits'))"
+                                        "value": "@min(first(body('Remove_smaller_supportedUnits')),variables('maxUnits'))"
                                     }
                                 ]
                             },
