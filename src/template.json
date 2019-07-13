@@ -73,60 +73,58 @@
                     },
                     "actions": {
                         "CalculateUnits": {
+                            "inputs": {
+                                "bufferedConnections": "@add(max(1000,variables('currentConnections')),variables('buffer'))",
+                                "currentConnections": "@variables('currentConnections')",
+                                "expectedUnits": "@int(split(string(min(div(add(variables('currentConnections'),add(variables('buffer'),1000)),1000), variables('maxUnits'))),'.')[0])"
+                            },
                             "runAfter": {
                                 "ForEachConnectionCount": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "Compose",
-                            "inputs": {
-                                "bufferedConnections": "@add(max(1000,variables('currentConnections')),variables('buffer'))",
-                                "currentConnections": "@variables('currentConnections')",
-                                "expectedUnits": "@int(split(string(min(div(add(variables('currentConnections'),add(variables('buffer'),1000)),1000), variables('maxUnits'))),'.')[0])"
-                            }
+                            "type": "Compose"
                         },
                         "CreateOrUpdateSignalR_Body": {
-                            "runAfter": {
-                                "Set_currentUnits": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "Compose",
                             "inputs": {
                                 "location": "@parameters('location')",
                                 "sku": {
-                                    "capacity": "@outputs('CalculateUnits')?['expectedUnits']",
+                                    "capacity": "@variables('finalUnits')",
                                     "name": "Standard_S1"
                                 }
-                            }
+                            },
+                            "runAfter": {
+                                "Variable:_finalUnits": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Compose"
                         },
                         "Filter_array": {
+                            "inputs": {
+                                "from": "@body('GetSignalRMetrics')?['value']?[0]?['timeseries']?[0]?['data']",
+                                "where": "@greaterOrEquals(formatDateTime(item()?['timeStamp']), getPastTime(parameters('scaleInterval'), 'Minute'))"
+                            },
                             "runAfter": {
                                 "GetSignalRMetrics": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "Query",
-                            "inputs": {
-                                "from": "@body('GetSignalRMetrics')?['value']?[0]?['timeseries']?[0]?['data']",
-                                "where": "@greaterOrEquals(formatDateTime(item()?['timeStamp']), getPastTime(parameters('scaleInterval'), 'Minute'))"
-                            }
+                            "type": "Query"
                         },
                         "ForEachConnectionCount": {
-                            "foreach": "@body('Filter_array')",
                             "actions": {
                                 "Condition": {
                                     "actions": {
                                         "Set_variable_2": {
-                                            "runAfter": {},
-                                            "type": "SetVariable",
                                             "inputs": {
                                                 "name": "currentConnections",
                                                 "value": "@items('ForEachConnectionCount')?['maximum']"
-                                            }
+                                            },
+                                            "runAfter": {},
+                                            "type": "SetVariable"
                                         }
                                     },
-                                    "runAfter": {},
                                     "expression": {
                                         "and": [
                                             {
@@ -137,9 +135,11 @@
                                             }
                                         ]
                                     },
+                                    "runAfter": {},
                                     "type": "If"
                                 }
                             },
+                            "foreach": "@body('Filter_array')",
                             "runAfter": {
                                 "Filter_array": [
                                     "Succeeded"
@@ -148,82 +148,88 @@
                             "type": "Foreach"
                         },
                         "GetSignalR": {
+                            "inputs": {
+                                "authentication": "@parameters('rest-authentication')",
+                                "method": "GET",
+                                "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroup')}/providers/Microsoft.SignalRService/signalR/@{parameters('signalrName')}?api-version=2018-10-01"
+                            },
                             "runAfter": {
                                 "CalculateUnits": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "Http",
+                            "type": "Http"
+                        },
+                        "GetSignalRMetrics": {
                             "inputs": {
                                 "authentication": "@parameters('rest-authentication')",
                                 "method": "GET",
-                                "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroup')}/providers/Microsoft.SignalRService/signalR/@{parameters('signalrName')}?api-version=2018-10-01"
-                            }
-                        },
-                        "GetSignalRMetrics": {
+                                "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroup')}/providers/Microsoft.SignalRService/SignalR/@{parameters('signalrName')}/providers/microsoft.insights/metrics?api-version=2018-01-01"
+                            },
                             "runAfter": {
                                 "Variable:_currentUnits": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "Http",
-                            "inputs": {
-                                "authentication": "@parameters('rest-authentication')",
-                                "method": "GET",
-                                "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroup')}/providers/Microsoft.SignalRService/SignalR/@{parameters('signalrName')}/providers/microsoft.insights/metrics?api-version=2018-01-01"
-                            }
+                            "type": "Http"
                         },
                         "If_expected_!=_current": {
                             "actions": {
                                 "CreateOrUpdateSignalR": {
-                                    "runAfter": {},
-                                    "type": "Http",
                                     "inputs": {
                                         "authentication": "@parameters('rest-authentication')",
                                         "body": "@outputs('CreateOrUpdateSignalR_Body')",
                                         "method": "PUT",
                                         "uri": "https://management.azure.com/subscriptions/@{parameters('subscriptionId')}/resourceGroups/@{parameters('resourceGroup')}/providers/Microsoft.SignalRService/signalR/@{parameters('signalrName')}?api-version=2018-10-01"
-                                    }
+                                    },
+                                    "runAfter": {},
+                                    "type": "Http"
                                 }
-                            },
-                            "runAfter": {
-                                "CreateOrUpdateSignalR_Body": [
-                                    "Succeeded"
-                                ]
                             },
                             "expression": {
                                 "and": [
                                     {
                                         "not": {
                                             "equals": [
-                                                "@outputs('CalculateUnits')?['expectedUnits']",
+                                                "@variables('finalUnits')",
                                                 "@variables('currentUnits')"
                                             ]
                                         }
                                     }
                                 ]
                             },
+                            "runAfter": {
+                                "CreateOrUpdateSignalR_Body": [
+                                    "Succeeded"
+                                ]
+                            },
                             "type": "If"
                         },
+                        "Remove_smaller_supportedUnits": {
+                            "inputs": {
+                                "from": "@variables('supportedUnits')",
+                                "where": "@greaterOrEquals(item(), outputs('CalculateUnits')['expectedUnits'])"
+                            },
+                            "runAfter": {
+                                "Variable:_supportedUnits": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Query"
+                        },
                         "Set_currentUnits": {
+                            "inputs": {
+                                "name": "currentUnits",
+                                "value": "@body('GetSignalR')?['sku']?['capacity']"
+                            },
                             "runAfter": {
                                 "GetSignalR": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "SetVariable",
-                            "inputs": {
-                                "name": "currentUnits",
-                                "value": "@body('GetSignalR')?['sku']?['capacity']"
-                            }
+                            "type": "SetVariable"
                         },
                         "Variable:_buffer": {
-                            "runAfter": {
-                                "Variable:_currentConnections": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable",
                             "inputs": {
                                 "variables": [
                                     {
@@ -232,11 +238,15 @@
                                         "value": 50
                                     }
                                 ]
-                            }
+                            },
+                            "runAfter": {
+                                "Variable:_currentConnections": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable"
                         },
                         "Variable:_currentConnections": {
-                            "runAfter": {},
-                            "type": "InitializeVariable",
                             "inputs": {
                                 "variables": [
                                     {
@@ -245,15 +255,11 @@
                                         "value": 0
                                     }
                                 ]
-                            }
+                            },
+                            "runAfter": {},
+                            "type": "InitializeVariable"
                         },
                         "Variable:_currentUnits": {
-                            "runAfter": {
-                                "Variable:_maxUnits": [
-                                    "Succeeded"
-                                ]
-                            },
-                            "type": "InitializeVariable",
                             "inputs": {
                                 "variables": [
                                     {
@@ -262,24 +268,72 @@
                                         "value": 0
                                     }
                                 ]
-                            }
-                        },
-                        "Variable:_maxUnits": {
+                            },
                             "runAfter": {
-                                "Variable:_buffer": [
+                                "Variable:_maxUnits": [
                                     "Succeeded"
                                 ]
                             },
-                            "type": "InitializeVariable",
+                            "type": "InitializeVariable"
+                        },
+                        "Variable:_finalUnits": {
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "finalUnits",
+                                        "type": "Integer",
+                                        "value": "@first(body('Remove_smaller_supportedUnits'))"
+                                    }
+                                ]
+                            },
+                            "runAfter": {
+                                "Remove_smaller_supportedUnits": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable"
+                        },
+                        "Variable:_maxUnits": {
                             "inputs": {
                                 "variables": [
                                     {
                                         "name": "maxUnits",
                                         "type": "Integer",
-                                        "value": 3
+                                        "value": 5
                                     }
                                 ]
-                            }
+                            },
+                            "runAfter": {
+                                "Variable:_buffer": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable"
+                        },
+                        "Variable:_supportedUnits": {
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "supportedUnits",
+                                        "type": "Array",
+                                        "value": [
+                                            1,
+                                            2,
+                                            5,
+                                            10,
+                                            20,
+                                            50,
+                                            100
+                                        ]
+                                    }
+                                ]
+                            },
+                            "runAfter": {
+                                "Set_currentUnits": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable"
                         }
                     },
                     "outputs": {}
