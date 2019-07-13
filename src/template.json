@@ -96,7 +96,7 @@
                                 "expectedUnits": "@int(split(string(min(div(add(variables('currentConnections'),add(variables('buffer'),1000)),1000), variables('maxUnits'))),'.')[0])"
                             },
                             "runAfter": {
-                                "GetMaxCurrentUnits": [
+                                "GetMaxCurrentConnections": [
                                     "Succeeded"
                                 ]
                             },
@@ -148,9 +148,9 @@
                             },
                             "type": "Foreach"
                         },
-                        "GetMaxCurrentUnits": {
+                        "GetMaxCurrentConnections": {
                             "inputs": {
-                                "name": "currentUnits",
+                                "name": "currentConnections",
                                 "value": "@max(variables('allConnections'))"
                             },
                             "runAfter": {
