@@ -96,7 +96,7 @@
                                 "expectedUnits": "@int(split(string(min(div(add(variables('currentConnections'),add(variables('buffer'),1000)),1000), variables('maxUnits'))),'.')[0])"
                             },
                             "runAfter": {
-                                "ForEachConnectionCount": [
+                                "GetMaxCurrentUnits": [
                                     "Succeeded"
                                 ]
                             },
@@ -131,38 +131,34 @@
                         },
                         "ForEachConnectionCount": {
                             "actions": {
-                                "Condition": {
-                                    "actions": {
-                                        "Set_variable_2": {
-                                            "inputs": {
-                                                "name": "currentConnections",
-                                                "value": "@items('ForEachConnectionCount')?['maximum']"
-                                            },
-                                            "runAfter": {},
-                                            "type": "SetVariable"
-                                        }
-                                    },
-                                    "expression": {
-                                        "and": [
-                                            {
-                                                "less": [
-                                                    "@variables('currentConnections')",
-                                                    "@items('ForEachConnectionCount')?['maximum']"
-                                                ]
-                                            }
-                                        ]
+                                "Append_to_array_variable": {
+                                    "inputs": {
+                                        "name": "allConnections",
+                                        "value": "@int(item()['maximum'])"
                                     },
                                     "runAfter": {},
-                                    "type": "If"
+                                    "type": "AppendToArrayVariable"
                                 }
                             },
                             "foreach": "@body('Filter_array')",
                             "runAfter": {
-                                "Filter_array": [
+                                "Variable:_allConnections": [
                                     "Succeeded"
                                 ]
                             },
                             "type": "Foreach"
+                        },
+                        "GetMaxCurrentUnits": {
+                            "inputs": {
+                                "name": "currentUnits",
+                                "value": "@max(variables('allConnections'))"
+                            },
+                            "runAfter": {
+                                "ForEachConnectionCount": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "SetVariable"
                         },
                         "GetSignalR": {
                             "inputs": {
@@ -245,6 +241,26 @@
                                 ]
                             },
                             "type": "SetVariable"
+                        },
+                        "Variable:_allConnections": {
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "allConnections",
+                                        "type": "Array",
+                                        "value": [
+                                            0,
+                                            1
+                                        ]
+                                    }
+                                ]
+                            },
+                            "runAfter": {
+                                "Filter_array": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable"
                         },
                         "Variable:_buffer": {
                             "inputs": {
